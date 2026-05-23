@@ -1,0 +1,38 @@
+version: 2
+
+before:
+  hooks:
+    - go mod download
+
+builds:
+  - id: export-ua-history
+    main: ./cmd/export-ua-history
+    binary: export-ua-history
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X github.com/dayflower/export-ua-history/internal/buildinfo.Version={{ .Version }}
+
+archives:
+  - id: release-archive
+    ids:
+      - export-ua-history
+    formats:
+      - tar.gz
+    files:
+      - README.md
+      - LICENSE
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+
+release:
+  prerelease: false
