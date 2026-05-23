@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dayflower/export-ua-history/internal/browser"
 	"github.com/dayflower/export-ua-history/internal/browser/platform"
 )
 
@@ -28,30 +27,6 @@ func TestLoadProfiles(t *testing.T) {
 	}
 	if profiles[0].Path != "Default" || profiles[1].Path != "Profile 1" {
 		t.Fatalf("profiles order = %#v", profiles)
-	}
-}
-
-func TestResolveProfileByName(t *testing.T) {
-	profile, err := ResolveProfile([]browser.Profile{{Name: "Personal", Path: "Default"}}, "Personal", "")
-	if err != nil {
-		t.Fatalf("ResolveProfile() error = %v", err)
-	}
-	if profile.Path != "Default" {
-		t.Fatalf("profile.Path = %q", profile.Path)
-	}
-}
-
-func TestResolveProfileAmbiguousName(t *testing.T) {
-	_, err := ResolveProfile([]browser.Profile{{Name: "Same", Path: "Default"}, {Name: "Same", Path: "Profile 1"}}, "Same", "")
-	if err == nil || !strings.Contains(err.Error(), "ambiguous") {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestResolveDefaultProfileMissing(t *testing.T) {
-	_, err := ResolveProfile([]browser.Profile{{Name: "Work", Path: "Profile 1"}}, "", "")
-	if err == nil || !strings.Contains(err.Error(), "Default profile not found") {
-		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

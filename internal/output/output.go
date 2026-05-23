@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/dayflower/export-ua-history/internal/browser"
-	"github.com/dayflower/export-ua-history/internal/browser/chrome"
 )
 
 type Report struct {
@@ -27,7 +26,7 @@ type ReportEntry struct {
 	Browser    string `json:"browser"`
 }
 
-func FromHistoryEntries(entries []chrome.Entry) []ReportEntry {
+func FromHistoryEntries(entries []browser.HistoryEntry) []ReportEntry {
 	reportEntries := make([]ReportEntry, 0, len(entries))
 	for _, entry := range entries {
 		reportEntries = append(reportEntries, ReportEntry{
@@ -40,6 +39,16 @@ func FromHistoryEntries(entries []chrome.Entry) []ReportEntry {
 		})
 	}
 	return reportEntries
+}
+
+func NewReport(browserName string, rng browser.ExportRange, entries []browser.HistoryEntry) Report {
+	return Report{
+		Browser:      browserName,
+		StartDate:    rng.StartLocal.Format("2006-01-02T15:04:05Z07:00"),
+		EndDate:      rng.DisplayEndLocalInclusive.Format("2006-01-02T15:04:05Z07:00"),
+		TotalEntries: len(entries),
+		Entries:      FromHistoryEntries(entries),
+	}
 }
 
 func WriteReport(w io.Writer, report Report) error {

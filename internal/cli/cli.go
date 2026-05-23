@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/dayflower/export-ua-history/internal/browser"
 )
 
 const (
@@ -39,13 +41,7 @@ type Options struct {
 	ProfileName string
 	ProfilePath string
 	OutputPath  string
-	Range       ResolvedRange
-}
-
-type ResolvedRange struct {
-	StartLocal               time.Time
-	EndLocalExclusive        time.Time
-	DisplayEndLocalInclusive time.Time
+	Range       browser.ExportRange
 }
 
 func Parse(args []string, now time.Time) (ParseResult, error) {
@@ -183,16 +179,16 @@ func parseExportOptions(args []string, now time.Time) (Options, error) {
 	return opts, nil
 }
 
-func resolveRange(now time.Time, date, startDate, endDate, startTime, endTime string, hour int, timeSet bool) (ResolvedRange, error) {
+func resolveRange(now time.Time, date, startDate, endDate, startTime, endTime string, hour int, timeSet bool) (browser.ExportRange, error) {
 	location := now.Location()
 	if date != "" && (startDate != "" || endDate != "") {
-		return ResolvedRange{}, errors.New("--date is mutually exclusive with --start-date and --end-date")
+		return browser.ExportRange{}, errors.New("--date is mutually exclusive with --start-date and --end-date")
 	}
 	if (startDate == "") != (endDate == "") {
-		return ResolvedRange{}, errors.New("--start-date and --end-date must be supplied together")
+		return browser.ExportRange{}, errors.New("--start-date and --end-date must be supplied together")
 	}
 	if timeSet && (startTime != "" || endTime != "") {
-		return ResolvedRange{}, errors.New("--time is mutually exclusive with --start-time and --end-time")
+		return browser.ExportRange{}, errors.New("--time is mutually exclusive with --start-time and --end-time")
 	}
 
 	if date == "" && startDate == "" && endDate == "" {
@@ -201,22 +197,22 @@ func resolveRange(now time.Time, date, startDate, endDate, startTime, endTime st
 
 	if startDate != "" {
 		if timeSet || startTime != "" || endTime != "" {
-			return ResolvedRange{}, errors.New("--time, --start-time, and --end-time may only be used with --date")
+			return browser.ExportRange{}, errors.New("--time, --start-time, and --end-time may only be used with --date")
 		}
 		startDay, err := parseDate(startDate, location)
 		if err != nil {
-			return ResolvedRange{}, fmt.Errorf("invalid --start-date: %w", err)
+			return browser.ExportRange{}, fmt.Errorf("invalid --start-date: %w", err)
 		}
 		endDay, err := parseDate(endDate, location)
 		if err != nil {
-			return ResolvedRange{}, fmt.Errorf("invalid --end-date: %w", err)
+			return browser.ExportRange{}, fmt.Errorf("invalid --end-date: %w", err)
 		}
 		if endDay.Before(startDay) {
-			return ResolvedRange{}, errors.New("--end-date must be on or after --start-date")
+			return browser.ExportRange{}, errors.New("--end-date must be on or after --start-date")
 		}
 		start := startDay
 		endExclusive := endDay.AddDate(0, 0, 1)
-		return ResolvedRange{
+		return browser.ExportRange{
 			StartLocal:               start,
 			EndLocalExclusive:        endExclusive,
 			DisplayEndLocalInclusive: endExclusive.Add(-time.Second),
@@ -225,7 +221,7 @@ func resolveRange(now time.Time, date, startDate, endDate, startTime, endTime st
 
 	day, err := parseDate(date, location)
 	if err != nil {
-		return ResolvedRange{}, fmt.Errorf("invalid --date: %w", err)
+		return browser.ExportRange{}, fmt.Errorf("invalid --date: %w", err)
 	}
 
 	start := day
@@ -233,30 +229,30 @@ func resolveRange(now time.Time, date, startDate, endDate, startTime, endTime st
 
 	if timeSet {
 		if hour < 0 || hour > 23 {
-			return ResolvedRange{}, fmt.Errorf("invalid --time value %d: must be an integer from 0 to 23", hour)
+			return browser.ExportRange{}, fmt.Errorf("invalid --time value %d: must be an integer from 0 to 23", hour)
 		}
 		start = day.Add(time.Duration(hour) * time.Hour)
 		endExclusive = start.Add(time.Hour)
 	} else if startTime != "" || endTime != "" {
 		if startTime == "" || endTime == "" {
-			return ResolvedRange{}, errors.New("--start-time and --end-time must be supplied together")
+			return browser.ExportRange{}, errors.New("--start-time and --end-time must be supplied together")
 		}
 		startOffset, err := parseClock(startTime)
 		if err != nil {
-			return ResolvedRange{}, fmt.Errorf("invalid --start-time: %w", err)
+			return browser.ExportRange{}, fmt.Errorf("invalid --start-time: %w", err)
 		}
 		endOffset, err := parseClock(endTime)
 		if err != nil {
-			return ResolvedRange{}, fmt.Errorf("invalid --end-time: %w", err)
+			return browser.ExportRange{}, fmt.Errorf("invalid --end-time: %w", err)
 		}
 		if startOffset >= endOffset {
-			return ResolvedRange{}, errors.New("--start-time must be strictly earlier than --end-time")
+			return browser.ExportRange{}, errors.New("--start-time must be strictly earlier than --end-time")
 		}
 		start = day.Add(startOffset)
 		endExclusive = day.Add(endOffset)
 	}
 
-	return ResolvedRange{
+	return browser.ExportRange{
 		StartLocal:               start,
 		EndLocalExclusive:        endExclusive,
 		DisplayEndLocalInclusive: endExclusive.Add(-time.Second),
