@@ -2,33 +2,103 @@ name: Release
 
 on:
   push:
-    tags:
-      - "v*.*.*"
+    branches:
+      - main
 
 permissions:
   contents: write
 
 jobs:
-  validate-tag:
+  test:
     runs-on: ubuntu-latest
-    outputs:
-      valid: ${{ steps.check.outputs.valid }}
 
     steps:
-      - name: Validate tag format
-        id: check
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run tests
+        run: make test
+
+  detect-version:
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.detect.outputs.should_release }}
+      version: ${{ steps.detect.outputs.version }}
+      tag_name: ${{ steps.detect.outputs.tag_name }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect version change
+        id: detect
         env:
-          TAG_NAME: ${{ github.ref_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          CURRENT_SHA: ${{ github.sha }}
         run: |
-          if [[ "${TAG_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "valid=true" >> "${GITHUB_OUTPUT}"
-          else
-            echo "valid=false" >> "${GITHUB_OUTPUT}"
+          set -euo pipefail
+
+          version_file="internal/buildinfo/version.go"
+
+          extract_version() {
+            sed -nE 's/^var Version = "([0-9]+\.[0-9]+\.[0-9]+)"$/\1/p' "$1"
+          }
+
+          current_file="$(mktemp)"
+          previous_file="$(mktemp)"
+
+          git show "${CURRENT_SHA}:${version_file}" > "${current_file}"
+          current_version="$(extract_version "${current_file}")"
+
+          if [[ -z "${current_version}" ]]; then
+            echo "Current version must be X.Y.Z in ${version_file}" >&2
+            exit 1
           fi
 
+          if [[ "${current_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            :
+          else
+            echo "Invalid current version: ${current_version}" >&2
+            exit 1
+          fi
+
+          previous_version=""
+          if git cat-file -e "${BEFORE_SHA}:${version_file}" 2>/dev/null; then
+            git show "${BEFORE_SHA}:${version_file}" > "${previous_file}"
+            previous_version="$(extract_version "${previous_file}")"
+          fi
+
+          if [[ "${current_version}" == "${previous_version}" ]]; then
+            echo "should_release=false" >> "${GITHUB_OUTPUT}"
+            echo "version=${current_version}" >> "${GITHUB_OUTPUT}"
+            echo "tag_name=v${current_version}" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          tag_name="v${current_version}"
+          if git ls-remote --exit-code origin "refs/tags/${tag_name}" >/dev/null 2>&1; then
+            echo "Tag already exists: ${tag_name}" >&2
+            exit 1
+          fi
+
+          echo "should_release=true" >> "${GITHUB_OUTPUT}"
+          echo "version=${current_version}" >> "${GITHUB_OUTPUT}"
+          echo "tag_name=${tag_name}" >> "${GITHUB_OUTPUT}"
+
   release:
-    needs: validate-tag
-    if: needs.validate-tag.outputs.valid == 'true'
+    needs:
+      - test
+      - detect-version
+    if: needs.detect-version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -42,6 +112,17 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+
+      - name: Create release tag
+        env:
+          TAG_NAME: ${{ needs.detect-version.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "${TAG_NAME}" "${GITHUB_SHA}"
+          git push origin "refs/tags/${TAG_NAME}"
+          git checkout "${TAG_NAME}"
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
