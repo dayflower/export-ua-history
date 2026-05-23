@@ -12,6 +12,30 @@ If file access permissions are not available, the command may fail when reading 
 
 ## Installation
 
+### Install with Homebrew
+
+```sh
+brew tap dayflower/tap
+brew install export-ua-history
+```
+
+### Install from GitHub Releases
+
+Download the archive for your operating system and architecture from the
+[GitHub Releases](https://github.com/dayflower/export-ua-history/releases) page.
+
+For macOS and Linux, extract the `.tar.gz` archive and move the binary somewhere
+on your `PATH`:
+
+```sh
+tar -xzf export-ua-history_<version>_<os>_<arch>.tar.gz
+sudo mv export-ua-history /usr/local/bin/
+export-ua-history version
+```
+
+For Windows, extract the `.zip` archive and place `export-ua-history.exe` in a
+directory where you want to run it.
+
 ### Install with `go install`
 
 ```sh
