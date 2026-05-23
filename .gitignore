@@ -1,0 +1,13 @@
+.vscode/
+
+# Local Go build cache used in sandbox-friendly commands.
+.gocache/
+
+# Go test and coverage artifacts.
+*.test
+*.out
+coverage.out
+
+# Common local build output.
+export-ua-history
+bin/
