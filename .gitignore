@@ -2,6 +2,7 @@
 
 # Local Go build cache used in sandbox-friendly commands.
 .gocache/
+.gomodcache/
 
 # Go test and coverage artifacts.
 *.test
@@ -11,3 +12,4 @@ coverage.out
 # Common local build output.
 export-ua-history
 bin/
+dist/
