@@ -34,5 +34,22 @@ archives:
         formats:
           - zip
 
+brews:
+  - name: export-ua-history
+    ids:
+      - release-archive
+    repository:
+      owner: dayflower
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    homepage: https://github.com/dayflower/export-ua-history
+    description: Chrome browsing history JSON export CLI
+    license: MIT
+    install: |
+      bin.install "export-ua-history"
+    test: |
+      system "#{bin}/export-ua-history", "version"
+
 release:
   prerelease: false
