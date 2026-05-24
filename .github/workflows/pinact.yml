@@ -1,0 +1,30 @@
+name: Pin GitHub Actions
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/**/*.yml"
+      - ".github/workflows/**/*.yaml"
+
+permissions:
+  contents: write
+  pull-requests: write
+  workflows: write
+
+jobs:
+  pinact:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+
+      - name: Pin GitHub Actions
+        uses: suzuki-shunsuke/pinact-action@v2.0.0
+        with:
+          app_id: ${{ vars.ACTIONS_APP_ID }}
+          app_private_key: ${{ secrets.ACTIONS_APP_PRIVATE_KEY }}
