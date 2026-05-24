@@ -41,7 +41,14 @@ brews:
     repository:
       owner: dayflower
       name: homebrew-tap
+      branch: "goreleaser/{{ .ProjectName }}-{{ .Version }}"
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+      pull_request:
+        enabled: true
+        base:
+          owner: dayflower
+          name: homebrew-tap
+          branch: main
     directory: Formula
     homepage: https://github.com/dayflower/export-ua-history
     description: Chrome browsing history JSON export CLI
